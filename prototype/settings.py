@@ -17,7 +17,9 @@ SECRET_NAMES = (
     "SUPABASE_KEY",
     "SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_EVALUATIONS_TABLE",
+    "EVAL_SUPABASE_URL",
+    "EVAL_SUPABASE_KEY",
+    "EVAL_SUPABASE_TABLE",
 )
 
 
@@ -41,11 +43,7 @@ def configure_environment_from_secrets() -> None:
 
 
 def supabase_key() -> str | None:
-    """Return the configured Supabase key.
-
-    Prefer `SUPABASE_KEY` for the deployed prototype. The other names are kept
-    as fallbacks so local experiments do not need duplicate values.
-    """
+    """Return the Dear Garden Supabase key used for catalogue reads."""
 
     return (
         secret("SUPABASE_KEY")
@@ -54,8 +52,19 @@ def supabase_key() -> str | None:
     )
 
 
-def evaluations_table() -> str:
-    """Return the Supabase table used for persisted evaluation labels."""
+def eval_supabase_url() -> str | None:
+    """Return the separate evaluation Supabase project URL."""
 
-    return secret("SUPABASE_EVALUATIONS_TABLE", "prototype_evaluations") or "prototype_evaluations"
+    return secret("EVAL_SUPABASE_URL")
 
+
+def eval_supabase_key() -> str | None:
+    """Return the separate evaluation Supabase key."""
+
+    return secret("EVAL_SUPABASE_KEY")
+
+
+def eval_supabase_table() -> str:
+    """Return the table used for persisted evaluation labels."""
+
+    return secret("EVAL_SUPABASE_TABLE", "prototype_evaluations") or "prototype_evaluations"

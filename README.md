@@ -29,34 +29,14 @@ Add these in Streamlit's Secrets box:
 PLANTNET_API_KEY = "..."
 SUPABASE_URL = "..."
 SUPABASE_KEY = "..."
-SUPABASE_EVALUATIONS_TABLE = "prototype_evaluations"
 ```
 
-Use a restricted Supabase key/policy for public testing. Do not paste real keys
-into GitHub, README files, screenshots, or Streamlit page text.
+Use a read-only Supabase key/policy for Dear Garden catalogue reads. Do not paste real keys into GitHub, README files, screenshots, or Streamlit page text.
 
 ## Storage
 
 The app does not store photos. It stores only evaluation rows.
 
-If Supabase is configured, rows are inserted into the Supabase table. If Supabase
-insert fails or is not configured, local runs fall back to `prototype/evaluations.csv`.
-That CSV is not reliable storage for a public Streamlit Cloud app.
+Evaluation labels are written to `prototype/evaluations.csv`. This is fine for local testing, but it is not reliable durable storage for a public Streamlit Cloud app. Do not write these labels to the Dear Garden Supabase database; use a separate evaluation database later if shared durable storage is needed.
 
-Suggested Supabase table:
-
-```sql
-create table prototype_evaluations (
-  id bigint generated always as identity primary key,
-  created_at timestamptz default now(),
-  test_id text not null,
-  verdict text not null check (verdict in ('correct', 'incorrect', 'unsure')),
-  suggested_genus text,
-  plantnet_score double precision,
-  plantnet_scientific_name text,
-  plantnet_common_name text,
-  alternative_genera text[],
-  notes text
-);
-```
-
+Dear Garden Supabase is used only to read catalogue plants and image URLs.

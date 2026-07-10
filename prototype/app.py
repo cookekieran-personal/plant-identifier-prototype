@@ -8,9 +8,15 @@ after the PlantNet call.
 
 from __future__ import annotations
 
+from pathlib import Path
+import sys
 from uuid import uuid4
 
 import streamlit as st
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from prototype.camera import image_suffix, temporary_image_file
 from prototype.catalogue import load_dear_garden_catalogue

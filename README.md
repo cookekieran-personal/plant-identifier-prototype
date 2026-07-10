@@ -1,4 +1,4 @@
-# Personal Plant Photo Prototype
+﻿# Personal Plant Photo Prototype
 
 Phone-friendly Streamlit prototype for testing PlantNet genus identification.
 
@@ -27,16 +27,23 @@ Add these in Streamlit's Secrets box:
 
 ```toml
 PLANTNET_API_KEY = "..."
+
+# Dear Garden catalogue reads only.
 SUPABASE_URL = "..."
 SUPABASE_KEY = "..."
+
+# Separate evaluation database for tester verdicts.
+EVAL_SUPABASE_URL = "..."
+EVAL_SUPABASE_KEY = "..."
+EVAL_SUPABASE_TABLE = "prototype_evaluations"
 ```
 
-Use a read-only Supabase key/policy for Dear Garden catalogue reads. Do not paste real keys into GitHub, README files, screenshots, or Streamlit page text.
+Use a read-only Supabase key or policy for Dear Garden catalogue reads. Do not paste real keys into GitHub, README files, screenshots, or Streamlit page text.
 
 ## Storage
 
-The app does not store photos. It stores only evaluation rows.
+The app does not store photos. It stores only evaluation rows: the suggested genus, PlantNet score, alternative genera shown, optional notes, and whether the tester marked the result as `correct`, `incorrect`, or `unsure`.
 
-Evaluation labels are written to `prototype/evaluations.csv`. This is fine for local testing, but it is not reliable durable storage for a public Streamlit Cloud app. Do not write these labels to the Dear Garden Supabase database; use a separate evaluation database later if shared durable storage is needed.
+When `EVAL_SUPABASE_URL` and `EVAL_SUPABASE_KEY` are configured, rows are written to the separate evaluation Supabase table. If those secrets are missing, the app falls back to `prototype/evaluations.csv` for local testing only.
 
 Dear Garden Supabase is used only to read catalogue plants and image URLs.

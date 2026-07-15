@@ -15,6 +15,15 @@ from prototype.settings import secret
 
 
 API_URL = "https://my-api.plantnet.org/v2/identify/all"
+PLANTNET_TIMEOUT = (10, 60)
+PLANTNET_UNAVAILABLE_MESSAGE = (
+    "PlantNet could not be reached right now. Please try again in a few minutes."
+)
+PLANTNET_FAILED_MESSAGE = "PlantNet could not identify this photo right now."
+
+
+class PlantNetClientError(RuntimeError):
+    """A safe, user-displayable PlantNet error."""
 
 
 def identify_genus_guesses(image_path: Path, api_key: str | None = None, limit: int = 5) -> list[GenusGuess]:
@@ -29,22 +38,30 @@ def request_plantnet(image_path: Path, api_key: str | None = None, organs: str =
 
     resolved_key = api_key or secret("PLANTNET_API_KEY")
     if not resolved_key:
-        raise RuntimeError("PlantNet API key is not configured.")
+        raise PlantNetClientError("PlantNet API key is not configured.")
 
-    with image_path.open("rb") as file:
-        response = requests.post(
-            API_URL,
-            params={"api-key": resolved_key, "lang": "en", "include-related-images": "true"},
-            files=[("images", (image_path.name, file, "application/octet-stream"))],
-            data=[("organs", organs)],
-            timeout=60,
-        )
+    try:
+        with image_path.open("rb") as file:
+            response = requests.post(
+                API_URL,
+                params={"api-key": resolved_key, "lang": "en", "include-related-images": "true"},
+                files=[("images", (image_path.name, file, "application/octet-stream"))],
+                data=[("organs", organs)],
+                timeout=PLANTNET_TIMEOUT,
+            )
+    except requests.Timeout:
+        raise PlantNetClientError(PLANTNET_UNAVAILABLE_MESSAGE) from None
+    except requests.RequestException:
+        raise PlantNetClientError("PlantNet request failed before a response was received.") from None
     try:
         response.raise_for_status()
     except requests.HTTPError as error:
         status = error.response.status_code if error.response is not None else "unknown"
-        raise RuntimeError(f"PlantNet request failed with HTTP status {status}.") from None
-    return response.json()
+        raise PlantNetClientError(f"PlantNet request failed with HTTP status {status}.") from None
+    try:
+        return response.json()
+    except ValueError:
+        raise PlantNetClientError(PLANTNET_FAILED_MESSAGE) from None
 
 
 def distinct_genus_guesses(results: list[dict], limit: int = 5) -> list[GenusGuess]:
@@ -107,4 +124,3 @@ def related_image_urls(images: list[dict], limit: int = 4) -> tuple[str, ...]:
         if len(urls) >= limit:
             break
     return tuple(urls)
-

@@ -23,7 +23,7 @@ from prototype.catalogue import load_dear_garden_catalogue
 from prototype.evaluation_store import append_evaluation
 from prototype.matching import match_guesses_to_catalogue
 from prototype.models import EvaluationRecord
-from prototype.plantnet_client import identify_genus_guesses
+from prototype.plantnet_client import PlantNetClientError, identify_genus_guesses
 from prototype.settings import configure_environment_from_secrets, secret
 from prototype.ui import show_alternatives, show_candidate, verdict_buttons
 
@@ -71,6 +71,12 @@ def save_verdict(verdict: str, notes: str) -> None:
     st.session_state.saved = True
 
 
+def show_safe_error(message: str) -> None:
+    """Display only fixed, secret-free messages in the public app."""
+
+    st.error(message)
+
+
 def main() -> None:
     """Render the app."""
 
@@ -86,8 +92,11 @@ def main() -> None:
             try:
                 identify_uploaded_photo(uploaded_photo)
                 st.session_state.saved = False
+            except PlantNetClientError as error:
+                show_safe_error(str(error))
+                return
             except Exception as error:  # noqa: BLE001 - show sanitized user-facing errors only
-                st.error(str(error))
+                show_safe_error("The photo could not be identified right now. Please try again.")
                 return
 
     candidates = st.session_state.get("candidates", [])
@@ -103,7 +112,7 @@ def main() -> None:
         try:
             save_verdict(verdict, notes)
         except Exception as error:  # noqa: BLE001 - storage errors are sanitized before display
-            st.error(str(error))
+            show_safe_error("The evaluation could not be saved right now.")
             return
 
     if st.session_state.get("saved"):
@@ -112,4 +121,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

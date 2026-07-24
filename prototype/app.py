@@ -150,13 +150,9 @@ def main() -> None:
             st.session_state.needs_second_photo = False
             st.session_state.saved = False
         else:
-            try:
-                save_verdict(verdict, notes)
-            except Exception:  # noqa: BLE001 - storage errors are sanitized before display
-                show_safe_error("The evaluation could not be saved right now.")
-                return
             st.session_state.show_same_genus_options = False
             st.session_state.needs_second_photo = True
+            st.session_state.saved = False
 
     if st.session_state.get("show_same_genus_options"):
         show_same_genus_species_options(notes)
@@ -181,11 +177,6 @@ def show_same_genus_species_options(notes: str) -> None:
     if not same_genus:
         st.info("No other exact species in this genus were suggested strongly enough.")
         if st.button("Take a closer second photo", use_container_width=True):
-            try:
-                save_verdict("genus_correct_species_incorrect", notes)
-            except Exception:  # noqa: BLE001 - storage errors are sanitized before display
-                show_safe_error("The evaluation could not be saved right now.")
-                return
             st.session_state.needs_second_photo = True
             st.session_state.show_same_genus_options = False
         return
@@ -198,11 +189,6 @@ def show_same_genus_species_options(notes: str) -> None:
     )
     if st.button("Save species choice", use_container_width=True):
         if selected_species == "None of these":
-            try:
-                save_verdict("genus_correct_species_incorrect", notes)
-            except Exception:  # noqa: BLE001 - storage errors are sanitized before display
-                show_safe_error("The evaluation could not be saved right now.")
-                return
             st.session_state.needs_second_photo = True
             st.session_state.show_same_genus_options = False
         else:

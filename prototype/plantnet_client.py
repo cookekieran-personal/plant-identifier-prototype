@@ -60,14 +60,15 @@ def request_plantnet(
     try:
         open_files = [image_path.open("rb") for image_path in image_paths]
         try:
-            multipart_parts = []
-            for image_path, file, organ in zip(image_paths, open_files, organ_values):
-                multipart_parts.append(("organs", (None, organ)))
-                multipart_parts.append(("images", (image_path.name, file, "application/octet-stream")))
+            files = [
+                ("images", (image_path.name, file, "application/octet-stream"))
+                for image_path, file in zip(image_paths, open_files)
+            ]
             response = requests.post(
                 API_URL,
                 params={"api-key": resolved_key, "lang": "en", "include-related-images": "true"},
-                files=multipart_parts,
+                files=files,
+                data=[("organs", organ) for organ in organ_values],
                 timeout=PLANTNET_TIMEOUT,
             )
         finally:

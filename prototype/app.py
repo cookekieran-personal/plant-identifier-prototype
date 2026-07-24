@@ -166,9 +166,20 @@ def main() -> None:
                 return
             st.session_state.needs_second_photo = False
         else:
-            st.session_state.needs_second_photo = True
-            st.session_state.saved = False
-            st.rerun()
+            if st.session_state.get("identification_attempt") == "second":
+                try:
+                    save_verdict(verdict, notes)
+                except EvaluationStoreError:
+                    show_safe_error("The evaluation could not be saved right now.")
+                    return
+                except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
+                    show_safe_error("The evaluation could not be saved right now.")
+                    return
+                st.session_state.needs_second_photo = False
+            else:
+                st.session_state.needs_second_photo = True
+                st.session_state.saved = False
+                st.rerun()
 
     if st.session_state.get("saved") and not st.session_state.get("needs_second_photo"):
         st.success("Saved. Take the next photo when ready.")

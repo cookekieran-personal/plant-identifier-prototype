@@ -106,6 +106,10 @@ def main() -> None:
     st.title("Dear Garden Plant ID Prototype")
     st.caption("Take a clear plant photo, then check whether the genus and exact species look right.")
 
+    if st.session_state.get("needs_second_photo"):
+        show_second_photo_prompt()
+        return
+
     uploaded_photo = st.camera_input("Take a plant photo", key="primary_camera")
     if uploaded_photo is None:
         uploaded_photo = st.file_uploader(
@@ -140,8 +144,8 @@ def main() -> None:
         if verdict == "both_correct":
             try:
                 save_verdict(verdict, notes, selected_species=top_candidate.scientific_name)
-            except EvaluationStoreError as error:
-                show_safe_error(str(error))
+            except EvaluationStoreError:
+                show_safe_error("The evaluation could not be saved right now.")
                 return
             except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
                 show_safe_error("The evaluation could not be saved right now.")
@@ -156,12 +160,10 @@ def main() -> None:
             st.session_state.show_same_genus_options = False
             st.session_state.needs_second_photo = True
             st.session_state.saved = False
+            st.rerun()
 
     if st.session_state.get("show_same_genus_options"):
         show_same_genus_species_options(notes)
-
-    if st.session_state.get("needs_second_photo"):
-        show_second_photo_prompt()
 
     if st.session_state.get("saved") and not st.session_state.get("needs_second_photo"):
         st.success("Saved. Take the next photo when ready.")
@@ -182,6 +184,7 @@ def show_same_genus_species_options(notes: str) -> None:
         if st.button("Take a closer second photo", use_container_width=True):
             st.session_state.needs_second_photo = True
             st.session_state.show_same_genus_options = False
+            st.rerun()
         return
 
     st.markdown("**Which exact species looks right?**")
@@ -194,11 +197,12 @@ def show_same_genus_species_options(notes: str) -> None:
         if selected_species == "None of these":
             st.session_state.needs_second_photo = True
             st.session_state.show_same_genus_options = False
+            st.rerun()
         else:
             try:
                 save_verdict("genus_correct_species_incorrect", notes, selected_species=selected_species)
-            except EvaluationStoreError as error:
-                show_safe_error(str(error))
+            except EvaluationStoreError:
+                show_safe_error("The evaluation could not be saved right now.")
                 return
             except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
                 show_safe_error("The evaluation could not be saved right now.")
@@ -210,7 +214,7 @@ def show_same_genus_species_options(notes: str) -> None:
 def show_second_photo_prompt() -> None:
     """Ask for another image when the current result is weak or marked incorrect."""
 
-    st.markdown("**Add another photo of the same plant**")
+    st.markdown("**Take another photo of the same plant**")
     st.caption(
         "Use the most identifiable part you can see: flower first, then fruit, leaf detail, bark, or the overall plant."
     )
@@ -230,6 +234,7 @@ def show_second_photo_prompt() -> None:
             try:
                 reset_judgement_flow()
                 identify_uploaded_photo(second_photo, organ=organ)
+                st.rerun()
             except PlantNetClientError as error:
                 show_safe_error(str(error))
                 return

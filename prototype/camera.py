@@ -8,9 +8,24 @@ file upload, then deletes the file after the API call.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 import tempfile
 from typing import BinaryIO, Iterator
+
+
+@dataclass(frozen=True)
+class UploadedImageSnapshot:
+    """In-memory copy of a Streamlit image upload for a later rerun."""
+
+    data: bytes
+    type: str
+    name: str = "plant-photo.jpg"
+
+    def getvalue(self) -> bytes:
+        """Match Streamlit's uploaded-file interface used by temporary_image_file."""
+
+        return self.data
 
 
 @contextmanager
@@ -36,3 +51,10 @@ def image_suffix(uploaded_file: object) -> str:
         return ".png"
     return ".jpg"
 
+
+def snapshot_uploaded_image(uploaded_file: object) -> UploadedImageSnapshot:
+    """Copy a Streamlit camera/upload object so it survives later reruns."""
+
+    mime_type = getattr(uploaded_file, "type", "") or "image/jpeg"
+    name = getattr(uploaded_file, "name", "") or f"plant-photo{image_suffix(uploaded_file)}"
+    return UploadedImageSnapshot(data=uploaded_file.getvalue(), type=mime_type, name=name)

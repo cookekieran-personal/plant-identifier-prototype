@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from prototype.camera import image_suffix, temporary_image_file
+from prototype.camera import image_suffix, snapshot_uploaded_image, temporary_image_file
 from prototype.catalogue import load_dear_garden_catalogue
 from prototype.evaluation_store import append_evaluation
 from prototype.matching import match_guesses_to_catalogue
@@ -110,7 +110,9 @@ def main() -> None:
     if uploaded_photo and st.button("Identify plant", type="primary", use_container_width=True):
         with st.spinner("Checking PlantNet..."):
             try:
-                identify_uploaded_photos([uploaded_photo], organs=["auto"])
+                primary_snapshot = snapshot_uploaded_image(uploaded_photo)
+                identify_uploaded_photos([primary_snapshot], organs=["auto"])
+                st.session_state.primary_photo_snapshot = primary_snapshot
             except PlantNetClientError as error:
                 show_safe_error(str(error))
                 return
@@ -144,7 +146,7 @@ def main() -> None:
         st.success("Saved. Take the next photo when ready.")
 
     if st.session_state.get("needs_second_photo"):
-        show_second_photo_prompt(uploaded_photo)
+        show_second_photo_prompt()
 
 
 def show_confidence_guidance(score: float) -> None:
@@ -160,7 +162,7 @@ def show_confidence_guidance(score: float) -> None:
         st.info("This is a plausible match, but not strong enough to treat as a confirmed exact species.")
 
 
-def show_second_photo_prompt(primary_photo) -> None:
+def show_second_photo_prompt() -> None:
     """Ask for another image when the current result is weak or marked incorrect."""
 
     st.markdown("**Add another photo of the same plant**")
@@ -179,12 +181,14 @@ def show_second_photo_prompt(primary_photo) -> None:
         return
 
     if st.button("Identify again with both photos", type="primary", use_container_width=True):
+        primary_photo = st.session_state.get("primary_photo_snapshot")
         if primary_photo is None:
             show_safe_error("Please keep or retake the first plant photo before identifying again.")
             return
+        second_snapshot = snapshot_uploaded_image(second_photo)
         with st.spinner("Checking PlantNet with both photos..."):
             try:
-                identify_uploaded_photos([primary_photo, second_photo], organs=["auto", organ])
+                identify_uploaded_photos([primary_photo, second_snapshot], organs=["auto", organ])
             except PlantNetClientError as error:
                 show_safe_error(str(error))
                 return

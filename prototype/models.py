@@ -1,8 +1,7 @@
-"""Shared data models for the standalone genus-level prototype.
+"""Shared data models for the standalone PlantNet prototype.
 
 The app, API clients, matching logic, UI, and storage layer all use these
-dataclasses so the result shape is defined once. The prototype evaluates only
-genus-level correctness; it does not identify exact species or cultivars.
+dataclasses so the result shape is defined once.
 """
 
 from __future__ import annotations
@@ -11,12 +10,13 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class GenusGuess:
-    """One genus-level guess derived from a PlantNet result."""
+class PlantNetGuess:
+    """One species-level guess returned by PlantNet."""
 
     genus: str
     score: float
     scientific_name: str
+    scientific_name_with_author: str = ""
     common_name: str = ""
     plantnet_image_urls: tuple[str, ...] = ()
 
@@ -34,11 +34,12 @@ class PlantRecord:
 
 @dataclass(frozen=True)
 class GenusCandidate:
-    """A genus shown to the evaluator with PlantNet and Dear Garden evidence."""
+    """A PlantNet candidate shown with relevant Dear Garden genus evidence."""
 
     genus: str
     score: float
     scientific_name: str
+    scientific_name_with_author: str
     common_name: str
     plantnet_image_urls: tuple[str, ...]
     catalogue_plant_count: int
@@ -58,4 +59,3 @@ class EvaluationRecord:
     plantnet_common_name: str
     alternative_genera: tuple[str, ...]
     notes: str = ""
-

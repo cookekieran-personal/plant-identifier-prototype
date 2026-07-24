@@ -1,6 +1,6 @@
-"""PlantNet client for genus-level evaluation.
+"""PlantNet client for species-level evaluation.
 
-This calls PlantNet using a server-side secret and returns genus-level guesses.
+This calls PlantNet using a server-side secret and returns species-level guesses.
 HTTP errors are sanitized so the API key cannot appear in the Streamlit page.
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-from prototype.models import GenusGuess
+from prototype.models import PlantNetGuess
 from prototype.settings import secret
 
 
@@ -26,29 +26,54 @@ class PlantNetClientError(RuntimeError):
     """A safe, user-displayable PlantNet error."""
 
 
-def identify_genus_guesses(image_path: Path, api_key: str | None = None, limit: int = 5) -> list[GenusGuess]:
-    """Call PlantNet and return distinct genus guesses in score order."""
+def identify_plantnet_guesses(
+    image_paths: list[Path],
+    api_key: str | None = None,
+    organs: list[str] | None = None,
+    limit: int = 5,
+) -> list[PlantNetGuess]:
+    """Call PlantNet and return distinct species guesses in score order."""
 
-    raw = request_plantnet(image_path, api_key=api_key)
-    return distinct_genus_guesses(raw.get("results", []), limit=limit)
+    raw = request_plantnet(image_paths, api_key=api_key, organs=organs)
+    return distinct_species_guesses(raw.get("results", []), limit=limit)
 
 
-def request_plantnet(image_path: Path, api_key: str | None = None, organs: str = "auto") -> dict:
+def request_plantnet(
+    image_paths: list[Path],
+    api_key: str | None = None,
+    organs: list[str] | None = None,
+) -> dict:
     """Call PlantNet with a runtime API key."""
 
     resolved_key = api_key or secret("PLANTNET_API_KEY")
     if not resolved_key:
         raise PlantNetClientError("PlantNet API key is not configured.")
+    if not image_paths:
+        raise PlantNetClientError("No plant photo was provided.")
+    if len(image_paths) > 5:
+        raise PlantNetClientError("PlantNet accepts up to 5 photos of one plant.")
+
+    organ_values = organs or ["auto"] * len(image_paths)
+    if len(organ_values) != len(image_paths):
+        raise PlantNetClientError("Each plant photo must have one organ label.")
 
     try:
-        with image_path.open("rb") as file:
+        open_files = [image_path.open("rb") for image_path in image_paths]
+        try:
+            files = [
+                ("images", (image_path.name, file, "application/octet-stream"))
+                for image_path, file in zip(image_paths, open_files)
+            ]
             response = requests.post(
                 API_URL,
                 params={"api-key": resolved_key, "lang": "en", "include-related-images": "true"},
-                files=[("images", (image_path.name, file, "application/octet-stream"))],
-                data=[("organs", organs)],
+                files=files,
+                data=[("organs", organ) for organ in organ_values],
                 timeout=PLANTNET_TIMEOUT,
             )
+        finally:
+            for file in open_files:
+                file.close()
     except requests.Timeout:
         raise PlantNetClientError(PLANTNET_UNAVAILABLE_MESSAGE) from None
     except requests.RequestException:
@@ -64,23 +89,25 @@ def request_plantnet(image_path: Path, api_key: str | None = None, organs: str =
         raise PlantNetClientError(PLANTNET_FAILED_MESSAGE) from None
 
 
-def distinct_genus_guesses(results: list[dict], limit: int = 5) -> list[GenusGuess]:
-    """Collapse PlantNet species results to one best row per genus."""
+def distinct_species_guesses(results: list[dict], limit: int = 5) -> list[PlantNetGuess]:
+    """Return one best PlantNet row per species."""
 
-    guesses: list[GenusGuess] = []
+    guesses: list[PlantNetGuess] = []
     seen: set[str] = set()
     for result in results:
         species = result.get("species") or {}
         scientific_name = species.get("scientificNameWithoutAuthor") or species.get("scientificName") or ""
         genus = genus_from_species(species) or genus_from_name(scientific_name)
-        if not genus or genus.lower() in seen:
+        normalized_name = scientific_name.strip().lower()
+        if not genus or not normalized_name or normalized_name in seen:
             continue
-        seen.add(genus.lower())
+        seen.add(normalized_name)
         guesses.append(
-            GenusGuess(
+            PlantNetGuess(
                 genus=genus,
                 score=float(result.get("score") or 0),
                 scientific_name=scientific_name,
+                scientific_name_with_author=species.get("scientificName") or scientific_name,
                 common_name=first_common_name(species),
                 plantnet_image_urls=related_image_urls(result.get("images") or []),
             )

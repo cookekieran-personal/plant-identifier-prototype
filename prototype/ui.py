@@ -1,4 +1,4 @@
-"""Reusable Streamlit UI components for the genus prototype.
+"""Reusable Streamlit UI components for the PlantNet prototype.
 
 The main app owns the flow; this file owns display details such as candidate
 cards and verdict buttons. Keeping UI rendering here prevents the entrypoint
@@ -19,13 +19,19 @@ VERDICTS = (
 )
 
 
-def show_candidate(candidate: GenusCandidate) -> None:
-    """Render the top suggested genus with PlantNet and relevant catalogue images."""
+def show_candidate(candidate: GenusCandidate, exact_species_threshold: float) -> None:
+    """Render the top PlantNet suggestion with PlantNet and catalogue images."""
 
-    st.subheader(f"We think the genus is {candidate.genus}")
-    st.caption(f"PlantNet score {candidate.score:.0%} from {candidate.scientific_name}.")
+    if candidate.score >= exact_species_threshold:
+        st.subheader(f"We think this is {candidate.scientific_name}")
+        st.caption(f"High-confidence exact species match from PlantNet: {candidate.score:.0%}.")
+    else:
+        st.subheader(f"This might be {candidate.scientific_name}")
+        st.caption(f"PlantNet confidence is {candidate.score:.0%}, so treat this as a lead, not a final ID.")
     if candidate.common_name:
         st.write(candidate.common_name)
+    if candidate.scientific_name_with_author and candidate.scientific_name_with_author != candidate.scientific_name:
+        st.caption(candidate.scientific_name_with_author)
 
     show_image_row("PlantNet reference images", candidate.plantnet_image_urls)
 
@@ -51,19 +57,19 @@ def show_image_row(title: str, image_urls: tuple[str, ...], captions: tuple[str,
 
 
 def show_alternatives(candidates: list[GenusCandidate]) -> None:
-    """Render lower-ranked genus candidates with one PlantNet image each."""
+    """Render lower-ranked PlantNet candidates with one PlantNet image each."""
 
     if len(candidates) <= 1:
         return
-    with st.expander("Other possible genera"):
+    with st.expander("Other possible matches"):
         for candidate in candidates[1:]:
             columns = st.columns([1, 3])
             with columns[0]:
                 if candidate.plantnet_image_urls:
                     st.image(candidate.plantnet_image_urls[0], use_container_width=True)
             with columns[1]:
-                st.write(f"**{candidate.genus}**")
-                st.caption(f"{candidate.score:.0%} - {candidate.scientific_name}")
+                st.write(f"**{candidate.scientific_name}**")
+                st.caption(f"{candidate.score:.0%} - genus {candidate.genus}")
 
 
 def verdict_buttons() -> str | None:
@@ -74,4 +80,3 @@ def verdict_buttons() -> str | None:
         if column.button(label, use_container_width=True):
             return value
     return None
-

@@ -8,8 +8,8 @@ The app:
 - sends the temporary image to PlantNet
 - shows PlantNet confidence separately for genus and exact species
 - shows PlantNet reference images and relevant Dear Garden genus examples
-- shows same-genus exact species options when the genus is right but the species is wrong
-- asks for a second, more identifiable photo when the user is unsure or the suggested genus is wrong
+- runs a card-based question flow for Rose, Hydrangea, Clematis, and Rhododendron
+- asks for a second, more identifiable photo when the first photo has low genus confidence, or when the user is unsure or says the suggested genus is wrong
 - asks the user whether the genus and exact species are both right, only the genus is right, both are wrong, or they are not sure
 - does not store user photos
 
@@ -53,4 +53,4 @@ Dear Garden Supabase is used only to read catalogue plants and image URLs.
 
 ## Identification notes
 
-PlantNet returns a ranked list of probable species with confidence scores. This prototype sums PlantNet species scores by genus so the UI can show genus confidence and exact-species confidence separately. If the user reaches the second-photo stage, only the second photo is sent to PlantNet; the first photo is not retained or resubmitted. PlantNet docs recommend sharp, well-lit images of multiple organs such as flower, leaf, fruit, or bark. When available, a clear flower photo is usually a strong second photo because flowers often carry distinctive species-level features.
+PlantNet returns a ranked list of probable species with confidence scores. This prototype sums PlantNet species scores by genus so the UI can show genus confidence and exact-species confidence separately. Rose, Hydrangea, Clematis, and Rhododendron run card-based disambiguation because care needs vary within those genera. If the user reaches the second-photo stage, only the second photo is sent to PlantNet; the first photo is not retained or resubmitted. PlantNet docs recommend sharp, well-lit images of multiple organs such as flower, leaf, fruit, or bark. When available, a clear flower photo is usually a strong second photo because flowers often carry distinctive species-level features.

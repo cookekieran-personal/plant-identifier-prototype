@@ -59,7 +59,6 @@ def identify_uploaded_photo(uploaded_photo, organ: str = "auto") -> None:
     st.session_state.test_id = uuid4().hex
     st.session_state.candidates = candidates
     st.session_state.needs_second_photo = False
-    st.session_state.show_same_genus_options = False
     st.session_state.saved = False
 
 
@@ -91,7 +90,8 @@ def reset_judgement_flow() -> None:
 
     st.session_state.saved = False
     st.session_state.needs_second_photo = False
-    st.session_state.show_same_genus_options = False
+    st.session_state.identification_attempt = "first"
+    st.session_state.low_confidence_first_photo = False
 
 
 def show_safe_error(message: str) -> None:
@@ -123,6 +123,10 @@ def main() -> None:
             try:
                 reset_judgement_flow()
                 identify_uploaded_photo(uploaded_photo)
+                if st.session_state.candidates[0].genus_score < CONFIDENCE_THRESHOLD:
+                    st.session_state.needs_second_photo = True
+                    st.session_state.low_confidence_first_photo = True
+                    st.rerun()
             except PlantNetClientError as error:
                 show_safe_error(str(error))
                 return
@@ -150,57 +154,10 @@ def main() -> None:
             except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
                 show_safe_error("The evaluation could not be saved right now.")
                 return
-            st.session_state.show_same_genus_options = False
             st.session_state.needs_second_photo = False
         elif verdict == "genus_correct_species_incorrect":
-            st.session_state.show_same_genus_options = True
-            st.session_state.needs_second_photo = False
-            st.session_state.saved = False
-        else:
-            st.session_state.show_same_genus_options = False
-            st.session_state.needs_second_photo = True
-            st.session_state.saved = False
-            st.rerun()
-
-    if st.session_state.get("show_same_genus_options"):
-        show_same_genus_species_options(notes)
-
-    if st.session_state.get("saved") and not st.session_state.get("needs_second_photo"):
-        st.success("Saved. Take the next photo when ready.")
-
-
-def show_same_genus_species_options(notes: str) -> None:
-    """Let the user choose a different exact species within the same genus."""
-
-    top = st.session_state.candidates[0]
-    same_genus = [
-        candidate.scientific_name
-        for candidate in st.session_state.candidates[1:]
-        if candidate.genus.lower() == top.genus.lower()
-    ][:3]
-
-    if not same_genus:
-        st.info("No other exact species in this genus were suggested strongly enough.")
-        if st.button("Take a closer second photo", use_container_width=True):
-            st.session_state.needs_second_photo = True
-            st.session_state.show_same_genus_options = False
-            st.rerun()
-        return
-
-    st.markdown("**Which exact species looks right?**")
-    selected_species = st.radio(
-        "Choose one option",
-        [*same_genus, "None of these"],
-        label_visibility="collapsed",
-    )
-    if st.button("Save species choice", use_container_width=True):
-        if selected_species == "None of these":
-            st.session_state.needs_second_photo = True
-            st.session_state.show_same_genus_options = False
-            st.rerun()
-        else:
             try:
-                save_verdict("genus_correct_species_incorrect", notes, selected_species=selected_species)
+                save_verdict(verdict, notes)
             except EvaluationStoreError:
                 show_safe_error("The evaluation could not be saved right now.")
                 return
@@ -208,12 +165,20 @@ def show_same_genus_species_options(notes: str) -> None:
                 show_safe_error("The evaluation could not be saved right now.")
                 return
             st.session_state.needs_second_photo = False
-            st.session_state.show_same_genus_options = False
+        else:
+            st.session_state.needs_second_photo = True
+            st.session_state.saved = False
+            st.rerun()
+
+    if st.session_state.get("saved") and not st.session_state.get("needs_second_photo"):
+        st.success("Saved. Take the next photo when ready.")
 
 
 def show_second_photo_prompt() -> None:
     """Ask for another image when the current result is weak or marked incorrect."""
 
+    if st.session_state.get("low_confidence_first_photo"):
+        st.warning("Sorry, we are not very confident with this photo.")
     st.markdown("**Take another photo of the same plant**")
     st.caption(
         "Use the most identifiable part you can see: flower first, then fruit, leaf detail, bark, or the overall plant."
@@ -232,8 +197,11 @@ def show_second_photo_prompt() -> None:
     if st.button("Identify again with this photo", type="primary", use_container_width=True):
         with st.spinner("Checking PlantNet with the new photo..."):
             try:
-                reset_judgement_flow()
+                st.session_state.low_confidence_first_photo = False
+                st.session_state.saved = False
+                st.session_state.needs_second_photo = False
                 identify_uploaded_photo(second_photo, organ=organ)
+                st.session_state.identification_attempt = "second"
                 st.rerun()
             except PlantNetClientError as error:
                 show_safe_error(str(error))

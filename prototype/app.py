@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
 
 from prototype.camera import image_suffix, temporary_image_file
 from prototype.catalogue import load_dear_garden_catalogue
-from prototype.evaluation_store import append_evaluation
+from prototype.evaluation_store import EvaluationStoreError, append_evaluation
 from prototype.matching import match_guesses_to_catalogue
 from prototype.models import EvaluationRecord
 from prototype.plantnet_client import PlantNetClientError, identify_plantnet_guesses
@@ -140,7 +140,10 @@ def main() -> None:
         if verdict == "both_correct":
             try:
                 save_verdict(verdict, notes, selected_species=top_candidate.scientific_name)
-            except Exception:  # noqa: BLE001 - storage errors are sanitized before display
+            except EvaluationStoreError as error:
+                show_safe_error(str(error))
+                return
+            except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
                 show_safe_error("The evaluation could not be saved right now.")
                 return
             st.session_state.show_same_genus_options = False
@@ -194,7 +197,10 @@ def show_same_genus_species_options(notes: str) -> None:
         else:
             try:
                 save_verdict("genus_correct_species_incorrect", notes, selected_species=selected_species)
-            except Exception:  # noqa: BLE001 - storage errors are sanitized before display
+            except EvaluationStoreError as error:
+                show_safe_error(str(error))
+                return
+            except Exception:  # noqa: BLE001 - unexpected storage errors are sanitized before display
                 show_safe_error("The evaluation could not be saved right now.")
                 return
             st.session_state.needs_second_photo = False

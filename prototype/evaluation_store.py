@@ -42,6 +42,10 @@ VALID_VERDICTS = {
 }
 
 
+class EvaluationStoreError(RuntimeError):
+    """A safe, user-displayable evaluation storage error."""
+
+
 def append_evaluation(record: EvaluationRecord) -> None:
     """Persist one evaluation row to the eval Supabase project or local CSV."""
 
@@ -83,7 +87,19 @@ def insert_eval_supabase_record(record: EvaluationRecord) -> None:
         response.raise_for_status()
     except requests.HTTPError as error:
         status = error.response.status_code if error.response is not None else "unknown"
-        raise RuntimeError(f"Could not save evaluation row. Evaluation Supabase returned HTTP {status}.") from None
+        detail = safe_supabase_error(response)
+        raise EvaluationStoreError(
+            f"Evaluation Supabase returned HTTP {status}. {detail}"
+        ) from None
+
+
+def safe_supabase_error(response: requests.Response) -> str:
+    """Return bounded Supabase error text without exposing request secrets."""
+
+    text = response.text.strip()
+    if not text:
+        return "No error detail was returned."
+    return text[:500]
 
 
 def eval_supabase_payload(record: EvaluationRecord) -> dict[str, Any]:

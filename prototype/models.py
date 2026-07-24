@@ -15,6 +15,7 @@ class PlantNetGuess:
 
     genus: str
     score: float
+    genus_score: float
     scientific_name: str
     scientific_name_with_author: str = ""
     common_name: str = ""
@@ -38,6 +39,7 @@ class GenusCandidate:
 
     genus: str
     score: float
+    genus_score: float
     scientific_name: str
     scientific_name_with_author: str
     common_name: str
@@ -54,8 +56,11 @@ class EvaluationRecord:
     test_id: str
     verdict: str
     suggested_genus: str
-    plantnet_score: float
+    suggested_species: str
+    plantnet_genus_score: float
+    plantnet_species_score: float
     plantnet_scientific_name: str
     plantnet_common_name: str
     alternative_genera: tuple[str, ...]
+    selected_species: str = ""
     notes: str = ""

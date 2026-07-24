@@ -30,7 +30,7 @@ def identify_plantnet_guesses(
     image_paths: list[Path],
     api_key: str | None = None,
     organs: list[str] | None = None,
-    limit: int = 5,
+    limit: int = 10,
 ) -> list[PlantNetGuess]:
     """Call PlantNet and return distinct species guesses in score order."""
 
@@ -60,15 +60,14 @@ def request_plantnet(
     try:
         open_files = [image_path.open("rb") for image_path in image_paths]
         try:
-            files = [
-                ("images", (image_path.name, file, "application/octet-stream"))
-                for image_path, file in zip(image_paths, open_files)
-            ]
+            multipart_parts = []
+            for image_path, file, organ in zip(image_paths, open_files, organ_values):
+                multipart_parts.append(("organs", (None, organ)))
+                multipart_parts.append(("images", (image_path.name, file, "application/octet-stream")))
             response = requests.post(
                 API_URL,
                 params={"api-key": resolved_key, "lang": "en", "include-related-images": "true"},
-                files=files,
-                data=[("organs", organ) for organ in organ_values],
+                files=multipart_parts,
                 timeout=PLANTNET_TIMEOUT,
             )
         finally:
@@ -89,9 +88,10 @@ def request_plantnet(
         raise PlantNetClientError(PLANTNET_FAILED_MESSAGE) from None
 
 
-def distinct_species_guesses(results: list[dict], limit: int = 5) -> list[PlantNetGuess]:
+def distinct_species_guesses(results: list[dict], limit: int = 10) -> list[PlantNetGuess]:
     """Return one best PlantNet row per species."""
 
+    genus_scores = aggregate_genus_scores(results)
     guesses: list[PlantNetGuess] = []
     seen: set[str] = set()
     for result in results:
@@ -106,6 +106,7 @@ def distinct_species_guesses(results: list[dict], limit: int = 5) -> list[PlantN
             PlantNetGuess(
                 genus=genus,
                 score=float(result.get("score") or 0),
+                genus_score=genus_scores.get(normalize_name(genus), 0),
                 scientific_name=scientific_name,
                 scientific_name_with_author=species.get("scientificName") or scientific_name,
                 common_name=first_common_name(species),
@@ -115,6 +116,27 @@ def distinct_species_guesses(results: list[dict], limit: int = 5) -> list[PlantN
         if len(guesses) >= limit:
             break
     return guesses
+
+
+def aggregate_genus_scores(results: list[dict]) -> dict[str, float]:
+    """Sum PlantNet species confidence scores by genus."""
+
+    genus_scores: dict[str, float] = {}
+    for result in results:
+        species = result.get("species") or {}
+        scientific_name = species.get("scientificNameWithoutAuthor") or species.get("scientificName") or ""
+        genus = genus_from_species(species) or genus_from_name(scientific_name)
+        if not genus:
+            continue
+        key = normalize_name(genus)
+        genus_scores[key] = min(1.0, genus_scores.get(key, 0) + float(result.get("score") or 0))
+    return genus_scores
+
+
+def normalize_name(name: str) -> str:
+    """Normalize a PlantNet name for grouping."""
+
+    return name.strip().lower()
 
 
 def genus_from_species(species: dict) -> str:

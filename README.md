@@ -6,10 +6,11 @@ The app:
 
 - takes or uploads a plant photo from a phone browser
 - sends the temporary image to PlantNet
-- shows the exact species suggestion when PlantNet confidence is high
+- shows PlantNet confidence separately for genus and exact species
 - shows PlantNet reference images and relevant Dear Garden genus examples
-- asks for a second, more identifiable photo when confidence is low or the user marks the match incorrect
-- asks the user to label the result as `correct`, `incorrect`, or `unsure`
+- shows same-genus exact species options when the genus is right but the species is wrong
+- asks for a second, more identifiable photo when the user is unsure or the suggested genus is wrong
+- asks the user whether the genus and exact species are both right, only the genus is right, both are wrong, or they are not sure
 - does not store user photos
 
 ## Run locally
@@ -44,7 +45,7 @@ Use a read-only Supabase key or policy for Dear Garden catalogue reads. Do not p
 
 ## Storage
 
-The app does not store photos. It stores only evaluation rows: the suggested genus, PlantNet score, PlantNet scientific name, alternative genera shown, optional notes, and whether the tester marked the result as `correct`, `incorrect`, or `unsure`.
+The app does not store photos. It stores only evaluation rows: the suggested genus, suggested species, PlantNet genus score, PlantNet species score, alternative genera shown, optional notes, and whether the tester marked the genus/species result as correct.
 
 When `EVAL_SUPABASE_URL` and `EVAL_SUPABASE_KEY` are configured, rows are written to the separate evaluation Supabase table. If those secrets are missing, the app falls back to `prototype/evaluations.csv` for local testing only.
 
@@ -52,4 +53,4 @@ Dear Garden Supabase is used only to read catalogue plants and image URLs.
 
 ## Identification notes
 
-PlantNet returns a ranked list of probable species with confidence scores. This prototype treats scores of `70%` and above as high-confidence exact species suggestions, scores below `50%` as low confidence, and invites the user to add another photo of the same plant. PlantNet supports multiple photos of the same plant in one request, and its docs recommend sharp, well-lit images of multiple organs such as flower, leaf, fruit, or bark. When available, a clear flower photo is usually a strong second photo because flowers often carry distinctive species-level features.
+PlantNet returns a ranked list of probable species with confidence scores. This prototype sums PlantNet species scores by genus so the UI can show genus confidence and exact-species confidence separately. If the user reaches the second-photo stage, only the second photo is sent to PlantNet; the first photo is not retained or resubmitted. PlantNet docs recommend sharp, well-lit images of multiple organs such as flower, leaf, fruit, or bark. When available, a clear flower photo is usually a strong second photo because flowers often carry distinctive species-level features.

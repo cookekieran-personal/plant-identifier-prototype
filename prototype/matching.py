@@ -23,7 +23,7 @@ def match_guesses_to_catalogue(
         build_candidate(guess, plants_by_genus.get(normalize_genus(guess.genus), []), examples_per_genus)
         for guess in guesses
     ]
-    return sorted(candidates, key=lambda candidate: -candidate.score)
+    return sorted(candidates, key=lambda candidate: (-candidate.genus_score, -candidate.score))
 
 
 def build_candidate(guess: PlantNetGuess, plants: list[PlantRecord], examples_per_genus: int) -> GenusCandidate:
@@ -33,6 +33,7 @@ def build_candidate(guess: PlantNetGuess, plants: list[PlantRecord], examples_pe
     return GenusCandidate(
         genus=guess.genus,
         score=guess.score,
+        genus_score=guess.genus_score,
         scientific_name=guess.scientific_name,
         scientific_name_with_author=guess.scientific_name_with_author,
         common_name=guess.common_name,

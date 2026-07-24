@@ -25,13 +25,21 @@ FIELDNAMES = (
     "test_id",
     "verdict",
     "suggested_genus",
-    "plantnet_score",
+    "suggested_species",
+    "plantnet_genus_score",
+    "plantnet_species_score",
     "plantnet_scientific_name",
     "plantnet_common_name",
     "alternative_genera",
+    "selected_species",
     "notes",
 )
-VALID_VERDICTS = {"correct", "incorrect", "unsure"}
+VALID_VERDICTS = {
+    "both_correct",
+    "genus_correct_species_incorrect",
+    "both_incorrect",
+    "unsure",
+}
 
 
 def append_evaluation(record: EvaluationRecord) -> None:
@@ -85,10 +93,14 @@ def eval_supabase_payload(record: EvaluationRecord) -> dict[str, Any]:
         "test_id": record.test_id,
         "verdict": record.verdict,
         "suggested_genus": record.suggested_genus,
-        "plantnet_score": record.plantnet_score,
+        "suggested_species": record.suggested_species,
+        "plantnet_score": record.plantnet_species_score,
+        "plantnet_genus_score": record.plantnet_genus_score,
+        "plantnet_species_score": record.plantnet_species_score,
         "plantnet_scientific_name": record.plantnet_scientific_name,
         "plantnet_common_name": record.plantnet_common_name,
         "alternative_genera": list(record.alternative_genera),
+        "selected_species": record.selected_species,
         "notes": record.notes,
     }
 
@@ -112,6 +124,7 @@ def serialize_csv_record(record: EvaluationRecord) -> dict[str, str]:
     """Convert a record to the flat local CSV schema."""
 
     row = asdict(record)
-    row["plantnet_score"] = f"{record.plantnet_score:.6f}"
+    row["plantnet_genus_score"] = f"{record.plantnet_genus_score:.6f}"
+    row["plantnet_species_score"] = f"{record.plantnet_species_score:.6f}"
     row["alternative_genera"] = "|".join(record.alternative_genera)
     return row
